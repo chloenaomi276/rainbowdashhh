@@ -111,7 +111,8 @@
         .icon-layout-b { width: 48px; height: 100px; grid-template-rows: repeat(3, 1fr); }
         .icon-layout-c { width: 48px; height: 75px; grid-template-rows: repeat(2, 1fr); }
         .icon-layout-d { width: 75px; height: 95px; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
-        .icon-layout-h { width: 120px; height: 50px; grid-template-columns: repeat(3, 1fr); padding: 6px 14px 6px 6px; }
+        .icon-layout-e { width: 120px; height: 50px; grid-template-columns: repeat(3, 1fr); padding: 6px 14px 6px 6px; }
+        .icon-layout-f { width: 75px; height: 65px; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); padding: 0px; gap: 0px; border: none; }
 
         .preview-block { background: #ffe4e7; }
 
@@ -149,7 +150,6 @@
             transform: scaleX(-1);
         }
 
-        /* Shutter fallback blink feedback */
         .shutter-blink {
             animation: shutterEffect 0.15s ease-out;
         }
@@ -177,7 +177,6 @@
             z-index: 10;
         }
 
-        /* Fixed full-viewport flash overlay: Stays white for 300ms then drops away */
         .flash-overlay {
             position: fixed;
             top: 0;
@@ -192,7 +191,7 @@
         .flash-active { animation: flashEffect 0.6s cubic-bezier(0.15, 0.85, 0.35, 1); }
         @keyframes flashEffect { 
             0% { opacity: 1; } 
-            50% { opacity: 1; } /* Locked bright white during snapshot execution frame */
+            50% { opacity: 1; } 
             100% { opacity: 0; } 
         }
 
@@ -266,7 +265,7 @@
         button:hover { background-color: var(--accent-pink-hover); }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Color Picker Box Container */
+        /* Color Picker Styles */
         .color-picker-container {
             position: relative;
             display: flex;
@@ -278,9 +277,7 @@
             cursor: pointer;
             transition: border-color 0.2s;
         }
-        .color-picker-container:hover {
-            border-color: var(--accent-pink);
-        }
+        .color-picker-container:hover { border-color: var(--accent-pink); }
 
         .color-preview-swatch {
             width: 36px;
@@ -411,12 +408,21 @@
                 <p class="subtitle">6 Pose Grid</p>
             </div>
 
-            <div class="size-card" onclick="selectSize('layoutH', 3)">
-                <div class="size-preview-icon icon-layout-h">
+            <div class="size-card" onclick="selectSize('layoutE', 3)">
+                <div class="size-preview-icon icon-layout-e">
                     <div class="preview-block"></div><div class="preview-block"></div><div class="preview-block"></div>
                 </div>
-                <h3>Film Strip</h3>
-                <p class="subtitle">Horizontal 3 Pose</p>
+                <h3>Layout E</h3>
+                <p class="subtitle">Horizontal Strip</p>
+            </div>
+
+            <div class="size-card" onclick="selectSize('layoutF', 4)">
+                <div class="size-preview-icon icon-layout-f">
+                    <div class="preview-block"></div><div class="preview-block"></div>
+                    <div class="preview-block"></div><div class="preview-block"></div>
+                </div>
+                <h3>Layout F</h3>
+                <p class="subtitle">No Frame 2x2 Grid</p>
             </div>
         </div>
     </div>
@@ -462,7 +468,7 @@
         </header>
         <div class="studio-container">
             <div class="editor-settings">
-                <div class="control-group">
+                <div class="control-group" id="frameColorGroup">
                     <label>Frame Color</label>
                     <div class="color-picker-container">
                         <span id="colorValueDisplay" class="color-value-display">#FFFFFF</span>
@@ -505,6 +511,7 @@
         const frameColorWheel = document.getElementById('frameColorWheel');
         const colorValueDisplay = document.getElementById('colorValueDisplay');
         const colorSwatch = document.getElementById('colorSwatch');
+        const frameColorGroup = document.getElementById('frameColorGroup');
 
         frameColorWheel.addEventListener('input', (e) => {
             const hexColor = e.target.value.toUpperCase();
@@ -555,6 +562,12 @@
                 progressDotsContainer.appendChild(d);
             }
 
+            if (selectedLayout === 'layoutF') {
+                frameColorGroup.style.display = 'none';
+            } else {
+                frameColorGroup.style.display = 'flex';
+            }
+
             switchScreen('screenBooth');
             initWebcam();
         }
@@ -572,23 +585,18 @@
                 await runTimer(3);
                 
                 if (flashToggle.checked) {
-                    // 1. Turn on white background flash overlay
                     flashOverlay.classList.add('flash-active');
-                    // 2. Instantly bump webcam exposure rendering filters directly on the stream
                     isFlashSnapActive = true;
                     applyFilterStyles(video, appConfig.currentFilter, true);
-                    
-                    // 3. Optimized Delay: Sit bright for exactly 300ms
                     await new Promise(resolve => setTimeout(resolve, 300));
                 } else {
-                    // Fallback baseline layout blink feedback
                     video.classList.add('shutter-blink');
                     await new Promise(resolve => setTimeout(resolve, 75));
                     video.classList.remove('shutter-blink');
                 }
                 
                 snapFrame();
-                dots[i].classList.add('active');
+                if(dots[i]) dots[i].classList.add('active');
                 
                 if (flashToggle.checked) {
                     isFlashSnapActive = false;
@@ -657,7 +665,11 @@
             const outerEdge = 24;     
             const extraBottom = 54;   
 
-            if (appConfig.layout === 'layoutA') {
+            if (appConfig.layout === 'layoutF') {
+                // Layout F: 2 columns, 2 rows, completely seamless (0 space)
+                outputCanvas.width = photoW * 2;
+                outputCanvas.height = photoH * 2;
+            } else if (appConfig.layout === 'layoutA') {
                 outputCanvas.width = photoW + (outerEdge * 2);
                 outputCanvas.height = (photoH * 4) + (innerGap * 3) + (outerEdge * 2) + extraBottom;
             } else if (appConfig.layout === 'layoutB') {
@@ -669,23 +681,29 @@
             } else if (appConfig.layout === 'layoutD') {
                 outputCanvas.width = (photoW * 2) + innerGap + (outerEdge * 2);
                 outputCanvas.height = (photoH * 3) + (innerGap * 2) + (outerEdge * 2) + extraBottom;
-            } else if (appConfig.layout === 'layoutH') {
+            } else if (appConfig.layout === 'layoutE') {
                 outputCanvas.width = (photoW * 3) + (innerGap * 2) + (outerEdge * 2) + extraBottom; 
                 outputCanvas.height = photoH + (outerEdge * 2);
             }
 
-            ctx.fillStyle = chosenColor;
-            ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+            if (appConfig.layout !== 'layoutF') {
+                ctx.fillStyle = chosenColor;
+                ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+            }
 
             capturedImages.forEach((img, i) => {
                 let dx, dy;
-                if (appConfig.layout === 'layoutA' || appConfig.layout === 'layoutB' || appConfig.layout === 'layoutC') {
+                if (appConfig.layout === 'layoutF') {
+                    // Seamless 2x2 grid calculation
+                    dx = (i % 2) * photoW;
+                    dy = Math.floor(i / 2) * photoH;
+                } else if (appConfig.layout === 'layoutA' || appConfig.layout === 'layoutB' || appConfig.layout === 'layoutC') {
                     dx = outerEdge;
                     dy = outerEdge + i * (photoH + innerGap);
                 } else if (appConfig.layout === 'layoutD') {
                     dx = outerEdge + (i % 2) * (photoW + innerGap);
                     dy = outerEdge + Math.floor(i / 2) * (photoH + innerGap);
-                } else if (appConfig.layout === 'layoutH') {
+                } else if (appConfig.layout === 'layoutE') {
                     dx = outerEdge + i * (photoW + innerGap);
                     dy = outerEdge;
                 }
