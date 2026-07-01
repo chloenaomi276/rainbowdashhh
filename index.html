@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rainbowdash photobooth</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fff0f2;
+            --panel-bg: #ffffff;
+            --text-main: #4a3538;
+            --text-sub: #8a7376;
+            --border-color: #ffd6e0;
+            --accent-pink: #ff5276;
+            --accent-pink-hover: #ff3b62;
+        }
+
+        body {
+            font-family: 'Quicksand', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 900px;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.99); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 500;
+            font-size: 2.4rem;
+            letter-spacing: -0.04em;
+            margin: 0 0 6px 0;
+            color: var(--accent-pink);
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+            letter-spacing: 0.02em;
+            color: var(--text-sub);
+            margin: 0;
+        }
+
+        /* Layout Selection Grid */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 24px;
+            width: 100%;
+            max-width: 850px;
+        }
+
+        .size-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .size-card:hover {
+            border-color: var(--accent-pink);
+            box-shadow: 0 10px 25px rgba(255, 82, 118, 0.15);
+        }
+
+        .size-preview-icon {
+            background: #fff9fa;
+            border: 1px solid #ffe3e6;
+            display: grid;
+            box-sizing: border-box;
+            padding: 10px 6px 18px 6px; 
+            gap: 4px; 
+        }
+        
+        .icon-layout-a { width: 48px; height: 125px; grid-template-rows: repeat(4, 1fr); }
+        .icon-layout-b { width: 48px; height: 100px; grid-template-rows: repeat(3, 1fr); }
+        .icon-layout-c { width: 48px; height: 75px; grid-template-rows: repeat(2, 1fr); }
+        .icon-layout-d { width: 75px; height: 95px; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
+        .icon-layout-h { width: 120px; height: 50px; grid-template-columns: repeat(3, 1fr); padding: 6px 14px 6px 6px; }
+
+        .preview-block { background: #ffe4e7; }
+
+        .size-card h3 {
+            margin: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        /* Camera Capture Viewport */
+        .booth-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .viewfinder-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #1e1e1e;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transform: scaleX(-1);
+        }
+
+        /* Shutter fallback blink feedback */
+        .shutter-blink {
+            animation: shutterEffect 0.15s ease-out;
+        }
+        @keyframes shutterEffect {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(0.1); }
+            100% { filter: brightness(1); }
+        }
+
+        .timer-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 7rem;
+            color: #fff;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            background: rgba(255, 82, 118, 0.05);
+            display: none;
+            z-index: 10;
+        }
+
+        /* Fixed full-viewport flash overlay: Stays white for 300ms then drops away */
+        .flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #ffffff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .flash-active { animation: flashEffect 0.6s cubic-bezier(0.15, 0.85, 0.35, 1); }
+        @keyframes flashEffect { 
+            0% { opacity: 1; } 
+            50% { opacity: 1; } /* Locked bright white during snapshot execution frame */
+            100% { opacity: 0; } 
+        }
+
+        .config-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: var(--panel-bg);
+            padding: 24px;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 4px 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toggle-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-pink);
+            cursor: pointer;
+        }
+
+        .toggle-group span {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-sub);
+            font-weight: 600;
+        }
+
+        select, button {
+            font-family: inherit;
+            font-size: 0.9rem;
+            padding: 12px;
+            border-radius: 0px;
+            border: 1px solid var(--border-color);
+            background: #fff;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        select { cursor: pointer; font-weight: 500; }
+
+        button {
+            background-color: var(--accent-pink);
+            color: white;
+            border: none;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: var(--accent-pink-hover); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Color Picker Box Container */
+        .color-picker-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .color-picker-container:hover {
+            border-color: var(--accent-pink);
+        }
+
+        .color-preview-swatch {
+            width: 36px;
+            height: 36px;
+            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
+            background-color: #ffffff;
+        }
+
+        .color-picker-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .color-value-display {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-main);
+            text-transform: uppercase;
+        }
+
+        .progress-dots {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: -4px;
+        }
+        .dot { width: 8px; height: 8px; background: #ebd5d7; border-radius: 0px; }
+        .dot.active { background: var(--accent-pink); }
+
+        .studio-container {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 40px;
+            width: 100%;
+            align-items: start;
+        }
+
+        @media (max-width: 750px) {
+            .studio-container { grid-template-columns: 1fr; }
+        }
+
+        .editor-settings {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            border-radius: 0px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .canvas-preview-box {
+            display: flex;
+            justify-content: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            border-radius: 0px;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 75vh;
+            height: auto;
+            border-radius: 0px;
+            box-shadow: 0 10px 30px rgba(255, 82, 118, 0.08);
+        }
+
+        .action-btn {
+            background: var(--accent-pink);
+            color: #fff;
+            text-decoration: none;
+            text-align: center;
+            padding: 14px;
+            border-radius: 0px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .action-btn:hover { background: var(--accent-pink-hover); }
+    </style>
+</head>
+<body>
+
+    <div id="screenSize" class="screen active">
+        <header>
+            <h1>rainbowdash photobooth</h1>
+            <p class="subtitle">choose your layout size</p>
+        </header>
+        <div class="layout-grid">
+            <div class="size-card" onclick="selectSize('layoutA', 4)">
+                <div class="size-preview-icon icon-layout-a">
+                    <div class="preview-block"></div><div class="preview-block"></div><div class="preview-block"></div><div class="preview-block"></div>
+                </div>
+                <h3>Layout A</h3>
+                <p class="subtitle">4 Pose Strip</p>
+            </div>
+            
+            <div class="size-card" onclick="selectSize('layoutB', 3)">
+                <div class="size-preview-icon icon-layout-b">
+                    <div class="preview-block"></div><div class="preview-block"></div><div class="preview-block"></div>
+                </div>
+                <h3>Layout B</h3>
+                <p class="subtitle">3 Pose Strip</p>
+            </div>
+
+            <div class="size-card" onclick="selectSize('layoutC', 2)">
+                <div class="size-preview-icon icon-layout-c">
+                    <div class="preview-block"></div><div class="preview-block"></div>
+                </div>
+                <h3>Layout C</h3>
+                <p class="subtitle">2 Pose Sheet</p>
+            </div>
+
+            <div class="size-card" onclick="selectSize('layoutD', 6)">
+                <div class="size-preview-icon icon-layout-d">
+                    <div class="preview-block"></div><div class="preview-block"></div><div class="preview-block"></div>
+                    <div class="preview-block"></div><div class="preview-block"></div><div class="preview-block"></div>
+                </div>
+                <h3>Layout D</h3>
+                <p class="subtitle">6 Pose Grid</p>
+            </div>
+
+            <div class="size-card" onclick="selectSize('layoutH', 3)">
+                <div class="size-preview-icon icon-layout-h">
+                    <div class="preview-block"></div><div class="preview-block"></div><div class="preview-block"></div>
+                </div>
+                <h3>Film Strip</h3>
+                <p class="subtitle">Horizontal 3 Pose</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="screenBooth" class="screen">
+        <header>
+            <h1>rainbowdash photobooth</h1>
+            <p class="subtitle">SMILEEEEE!!</p>
+        </header>
+        <div class="booth-container">
+            <div class="viewfinder-wrapper">
+                <div class="timer-overlay" id="timerOverlay">3</div>
+                <video id="video" autoplay playsinline></video>
+            </div>
+
+            <div class="progress-dots" id="progressDots"></div>
+
+            <div class="config-bar">
+                <div class="control-group">
+                    <label for="filterSelect">Filter Tone</label>
+                    <select id="filterSelect">
+                        <option value="none">Normal</option>
+                        <option value="softFocus">Soft Focus (Warm Glow)</option>
+                        <option value="cocoa">Cocoa</option>
+                        <option value="xpro">X-Pro</option>
+                        <option value="zinc">Zinc</option>
+                        <option value="sepia">Warm Sepia</option>
+                        <option value="grayscale">Monochrome</option>
+                    </select>
+                </div>
+                <label class="toggle-group">
+                    <input type="checkbox" id="flashToggle" checked>
+                    <span>enable flash</span>
+                </label>
+                <button id="captureBtn">Take Photo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screenDesign" class="screen">
+        <header>
+            <h1>design your frame</h1>
+        </header>
+        <div class="studio-container">
+            <div class="editor-settings">
+                <div class="control-group">
+                    <label>Frame Color</label>
+                    <div class="color-picker-container">
+                        <span id="colorValueDisplay" class="color-value-display">#FFFFFF</span>
+                        <div id="colorSwatch" class="color-preview-swatch"></div>
+                        <input type="color" id="frameColorWheel" class="color-picker-input" value="#ffffff">
+                    </div>
+                </div>
+
+                <a id="downloadBtn" class="action-btn" href="#" download="rainbowdash-snap.png">Download Photo</a>
+                <button onclick="backToHome()" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-sub);">Back to Home</button>
+            </div>
+
+            <div class="canvas-preview-box">
+                <canvas id="outputCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="flash-overlay" id="flashOverlay"></div>
+
+    <script>
+        let appConfig = {
+            layout: 'layoutA', 
+            totalFrames: 4,
+            currentFilter: 'none'
+        };
+        let capturedImages = [];
+        let isFlashSnapActive = false;
+
+        const video = document.getElementById('video');
+        const timerOverlay = document.getElementById('timerOverlay');
+        const flashOverlay = document.getElementById('flashOverlay');
+        const captureBtn = document.getElementById('captureBtn');
+        const filterSelect = document.getElementById('filterSelect');
+        const flashToggle = document.getElementById('flashToggle');
+        const progressDotsContainer = document.getElementById('progressDots');
+        const outputCanvas = document.getElementById('outputCanvas');
+        const ctx = outputCanvas.getContext('2d');
+        
+        const frameColorWheel = document.getElementById('frameColorWheel');
+        const colorValueDisplay = document.getElementById('colorValueDisplay');
+        const colorSwatch = document.getElementById('colorSwatch');
+
+        frameColorWheel.addEventListener('input', (e) => {
+            const hexColor = e.target.value.toUpperCase();
+            colorValueDisplay.innerText = hexColor;
+            colorSwatch.style.backgroundColor = hexColor;
+            buildFinalPrint();
+        });
+
+        function initWebcam() {
+            navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false })
+                .then(stream => { video.srcObject = stream; })
+                .catch(err => { console.error("Webcam missing:", err); });
+        }
+
+        filterSelect.addEventListener('change', (e) => {
+            appConfig.currentFilter = e.target.value;
+            applyFilterStyles(video, appConfig.currentFilter);
+        });
+
+        function applyFilterStyles(element, filter, forceFlash = false) {
+            let flashAddition = forceFlash ? ' brightness(1.35) contrast(1.10) saturate(1.05) ' : '';
+            
+            if (filter === 'none') {
+                element.style.filter = forceFlash ? flashAddition : 'none';
+            } else if (filter === 'softFocus') {
+                element.style.filter = 'contrast(0.85) brightness(1.32) saturate(1.18) sepia(0.18) hue-rotate(6deg) blur(0.9px)' + flashAddition;
+            } else if (filter === 'cocoa') {
+                element.style.filter = 'sepia(0.38) saturate(0.68) contrast(0.92) brightness(0.96)' + flashAddition;
+            } else if (filter === 'xpro') {
+                element.style.filter = 'contrast(1.42) saturate(1.35) sepia(0.12) hue-rotate(-12deg) brightness(1.02)' + flashAddition;
+            } else if (filter === 'zinc') {
+                element.style.filter = 'saturate(0.22) brightness(1.22) contrast(1.12) sepia(0.04)' + flashAddition;
+            } else if (filter === 'sepia') {
+                element.style.filter = 'sepia(0.6) contrast(0.95) brightness(1.02)' + flashAddition;
+            } else if (filter === 'grayscale') {
+                element.style.filter = 'grayscale(1) brightness(1.05)' + flashAddition;
+            }
+        }
+
+        function selectSize(selectedLayout, frameCount) {
+            appConfig.layout = selectedLayout;
+            appConfig.totalFrames = frameCount;
+            
+            progressDotsContainer.innerHTML = '';
+            for(let i=0; i<frameCount; i++) {
+                let d = document.createElement('div');
+                d.className = 'dot';
+                progressDotsContainer.appendChild(d);
+            }
+
+            switchScreen('screenBooth');
+            initWebcam();
+        }
+
+        captureBtn.addEventListener('click', async () => {
+            captureBtn.disabled = true;
+            filterSelect.disabled = true;
+            flashToggle.disabled = true;
+            capturedImages = [];
+            
+            const dots = progressDotsContainer.querySelectorAll('.dot');
+            dots.forEach(d => d.classList.remove('active'));
+
+            for (let i = 0; i < appConfig.totalFrames; i++) {
+                await runTimer(3);
+                
+                if (flashToggle.checked) {
+                    // 1. Turn on white background flash overlay
+                    flashOverlay.classList.add('flash-active');
+                    // 2. Instantly bump webcam exposure rendering filters directly on the stream
+                    isFlashSnapActive = true;
+                    applyFilterStyles(video, appConfig.currentFilter, true);
+                    
+                    // 3. Optimized Delay: Sit bright for exactly 300ms
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } else {
+                    // Fallback baseline layout blink feedback
+                    video.classList.add('shutter-blink');
+                    await new Promise(resolve => setTimeout(resolve, 75));
+                    video.classList.remove('shutter-blink');
+                }
+                
+                snapFrame();
+                dots[i].classList.add('active');
+                
+                if (flashToggle.checked) {
+                    isFlashSnapActive = false;
+                    applyFilterStyles(video, appConfig.currentFilter, false);
+                    setTimeout(() => flashOverlay.classList.remove('flash-active'), 250);
+                }
+                
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            setTimeout(() => {
+                buildFinalPrint();
+                switchScreen('screenDesign');
+            }, 600);
+        });
+
+        function runTimer(seconds) {
+            return new Promise(resolve => {
+                let current = seconds;
+                timerOverlay.style.display = 'flex';
+                timerOverlay.innerText = current;
+
+                const timer = setInterval(() => {
+                    current--;
+                    if (current > 0) {
+                        timerOverlay.innerText = current;
+                    } else {
+                        clearInterval(timer);
+                        timerOverlay.style.display = 'none';
+                        resolve();
+                    }
+                }, 1000);
+            });
+        }
+
+        function snapFrame() {
+            const canvasTemp = document.createElement('canvas');
+            canvasTemp.width = 640;
+            canvasTemp.height = 480;
+            const ctxTemp = canvasTemp.getContext('2d');
+
+            ctxTemp.translate(canvasTemp.width, 0);
+            ctxTemp.scale(-1, 1);
+
+            let flashAddition = flashToggle.checked ? ' brightness(1.35) contrast(1.10) saturate(1.05) ' : '';
+
+            if (appConfig.currentFilter === 'softFocus') ctxTemp.filter = 'contrast(0.85) brightness(1.32) saturate(1.18) sepia(0.18) hue-rotate(6deg) blur(0.9px)' + flashAddition;
+            else if (appConfig.currentFilter === 'cocoa') ctxTemp.filter = 'sepia(0.38) saturate(0.68) contrast(0.92) brightness(0.96)' + flashAddition;
+            else if (appConfig.currentFilter === 'xpro') ctxTemp.filter = 'contrast(1.42) saturate(1.35) sepia(0.12) hue-rotate(-12deg) brightness(1.02)' + flashAddition;
+            else if (appConfig.currentFilter === 'zinc') ctxTemp.filter = 'saturate(0.22) brightness(1.22) contrast(1.12) sepia(0.04)' + flashAddition;
+            else if (appConfig.currentFilter === 'sepia') ctxTemp.filter = 'sepia(0.6) contrast(0.95) brightness(1.02)' + flashAddition;
+            else if (appConfig.currentFilter === 'grayscale') ctxTemp.filter = 'grayscale(1) brightness(1.05)' + flashAddition;
+            else ctxTemp.filter = flashToggle.checked ? 'brightness(1.35) contrast(1.10)' : 'none';
+
+            ctxTemp.drawImage(video, 0, 0, 640, 480);
+            capturedImages.push(canvasTemp);
+        }
+
+        function buildFinalPrint() {
+            const chosenColor = frameColorWheel.value;
+
+            const photoW = 400;
+            const photoH = 300;
+            
+            const innerGap = 12;      
+            const outerEdge = 24;     
+            const extraBottom = 54;   
+
+            if (appConfig.layout === 'layoutA') {
+                outputCanvas.width = photoW + (outerEdge * 2);
+                outputCanvas.height = (photoH * 4) + (innerGap * 3) + (outerEdge * 2) + extraBottom;
+            } else if (appConfig.layout === 'layoutB') {
+                outputCanvas.width = photoW + (outerEdge * 2);
+                outputCanvas.height = (photoH * 3) + (innerGap * 2) + (outerEdge * 2) + extraBottom;
+            } else if (appConfig.layout === 'layoutC') {
+                outputCanvas.width = photoW + (outerEdge * 2);
+                outputCanvas.height = (photoH * 2) + (innerGap * 1) + (outerEdge * 2) + extraBottom;
+            } else if (appConfig.layout === 'layoutD') {
+                outputCanvas.width = (photoW * 2) + innerGap + (outerEdge * 2);
+                outputCanvas.height = (photoH * 3) + (innerGap * 2) + (outerEdge * 2) + extraBottom;
+            } else if (appConfig.layout === 'layoutH') {
+                outputCanvas.width = (photoW * 3) + (innerGap * 2) + (outerEdge * 2) + extraBottom; 
+                outputCanvas.height = photoH + (outerEdge * 2);
+            }
+
+            ctx.fillStyle = chosenColor;
+            ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+
+            capturedImages.forEach((img, i) => {
+                let dx, dy;
+                if (appConfig.layout === 'layoutA' || appConfig.layout === 'layoutB' || appConfig.layout === 'layoutC') {
+                    dx = outerEdge;
+                    dy = outerEdge + i * (photoH + innerGap);
+                } else if (appConfig.layout === 'layoutD') {
+                    dx = outerEdge + (i % 2) * (photoW + innerGap);
+                    dy = outerEdge + Math.floor(i / 2) * (photoH + innerGap);
+                } else if (appConfig.layout === 'layoutH') {
+                    dx = outerEdge + i * (photoW + innerGap);
+                    dy = outerEdge;
+                }
+                ctx.drawImage(img, dx, dy, photoW, photoH);
+            });
+
+            document.getElementById('downloadBtn').href = outputCanvas.toDataURL('image/png');
+        }
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function backToHome() {
+            captureBtn.disabled = false;
+            filterSelect.disabled = false;
+            flashToggle.disabled = false;
+            switchScreen('screenSize');
+        }
+    </script>
+</body>
+</html>
